@@ -10,8 +10,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.navigation.NavigationView
@@ -21,15 +19,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navView: NavigationView
     private lateinit var toolbar: MaterialToolbar
+    private lateinit var tvTotalTenants: TextView
+    private lateinit var tvTotalRent: TextView
 
-    // Activity Result API contract
-    private val addTenantResultLauncher = registerForActivityResult(
+    // Improved Activity Result API contract
+    private val addTenantLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            // Handle any result data if needed
-            val data: Intent? = result.data
-            // Will process returned data here if AddTenant sends back results
+            result.data?.let { data ->
+                val tenantCount = data.getIntExtra("TotalTenants", 0)
+                val totalRent = data.getIntExtra("TotalRent", 0)
+                
+                updateDashboard(tenantCount, totalRent)
+            }
         }
     }
 
@@ -39,17 +42,24 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         Log.d("LIFECYCLE", "MainActivity - onCreate")
+        initializeViews()
+        setupNavigationDrawer()
+        handleIntentExtras()
+    }
 
+    private fun initializeViews() {
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
         toolbar = findViewById(R.id.topAppBar)
+        tvTotalRent = findViewById(R.id.tvTotalRentExpected)
+        tvTotalTenants = findViewById(R.id.tvTotalRegisteredTenants)
+    }
 
-        // Open drawer when ☰ icon is clicked
+    private fun setupNavigationDrawer() {
         toolbar.setNavigationOnClickListener {
             drawerLayout.openDrawer(GravityCompat.START)
         }
         
-        // Handle navigation item selection
         navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.nav_dashboard -> {
@@ -57,8 +67,7 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
                 R.id.nav_add_tenant -> {
-                    val intent = Intent(this, AddTenant::class.java)
-                    addTenantResultLauncher.launch(intent)  // Updated to use Activity Result API
+                    addTenantLauncher.launch(Intent(this, AddTenant::class.java))
                     true
                 }
                 R.id.nav_logout -> {
@@ -70,50 +79,31 @@ class MainActivity : AppCompatActivity() {
                 drawerLayout.closeDrawer(GravityCompat.START)
             }
         }
+    }
 
-        val tvTotalRent = findViewById<TextView>(R.id.tvTotalRentExpected)
-        val tvTotalTenants = findViewById<TextView>(R.id.tvTotalRegisteredTenants)
+    private fun handleIntentExtras() {
+        intent?.extras?.let {
+            updateDashboard(
+                it.getInt("TotalTenants", 0),
+                it.getInt("TotalRent", 0)
+            )
+        }
 
-        val totalRent = intent.getIntExtra("TotalRent", 0)
-        val totalTenants = intent.getIntExtra("TotalTenants", 0)
-
-        tvTotalRent.text = "Total Rent Collected: $totalRent"
-        tvTotalTenants.text = "Total Tenants: $totalTenants"
-
-        val btnAddTenantNav = findViewById<Button>(R.id.btnAddTenants)
-        btnAddTenantNav.setOnClickListener {
-            val intent = Intent(this, AddTenant::class.java)
-            startActivity(intent)
+        findViewById<Button>(R.id.btnAddTenants).setOnClickListener {
+            addTenantLauncher.launch(Intent(this, AddTenant::class.java))
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        Log.d("LIFECYCLE", "MainActivity - onStart")
+    private fun updateDashboard(tenantCount: Int, totalRent: Int) {
+        tvTotalTenants.text = "Total Tenants: $tenantCount"
+        tvTotalRent.text = "Total Rent Collected: $totalRent"
     }
 
-    override fun onResume() {
-        super.onResume()
-        Log.d("LIFECYCLE", "MainActivity - onResume")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d("LIFECYCLE", "MainActivity - onPause")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d("LIFECYCLE", "MainActivity - onStop")
-    }
-
-    override fun onRestart() {
-        super.onRestart()
-        Log.d("LIFECYCLE", "MainActivity - onRestart")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d("LIFECYCLE", "MainActivity - onDestroy")
-    }
+    // Lifecycle logging kept as before
+    override fun onStart() { super.onStart(); Log.d("LIFECYCLE", "onStart") }
+    override fun onResume() { super.onResume(); Log.d("LIFECYCLE", "onResume") }
+    override fun onPause() { super.onPause(); Log.d("LIFECYCLE", "onPause") }
+    override fun onStop() { super.onStop(); Log.d("LIFECYCLE", "onStop") }
+    override fun onRestart() { super.onRestart(); Log.d("LIFECYCLE", "onRestart") }
+    override fun onDestroy() { super.onDestroy(); Log.d("LIFECYCLE", "onDestroy") }
 }
